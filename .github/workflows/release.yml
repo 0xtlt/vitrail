@@ -46,13 +46,27 @@ jobs:
           APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          # Notarize the DMG
-          xcrun notarytool submit "dist/Tiler-${{ matrix.arch }}.dmg" \
+          # Notarize the app (submit as zip, staple the .app)
+          ditto -c -k --keepParent "dist/Tiler.app" "dist/Tiler-notarize.zip"
+          xcrun notarytool submit "dist/Tiler-notarize.zip" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
-          xcrun stapler staple "dist/Tiler-${{ matrix.arch }}.dmg"
+          xcrun stapler staple "dist/Tiler.app"
+          rm "dist/Tiler-notarize.zip"
+
+      - name: Create DMG with stapled app
+        run: |
+          rm -f "dist/Tiler-${{ matrix.arch }}.dmg"
+          mkdir -p dist/dmg
+          cp -r dist/Tiler.app dist/dmg/
+          ln -s /Applications dist/dmg/Applications
+          hdiutil create -volname "Tiler" \
+            -srcfolder dist/dmg \
+            -ov -format UDZO \
+            "dist/Tiler-${{ matrix.arch }}.dmg"
+          rm -rf dist/dmg
 
       - name: Upload to release
         env:
