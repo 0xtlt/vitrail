@@ -139,6 +139,7 @@ struct WindowManager {
 			let (origin, size) = Screen.percentToPixels(
 				x: rule.x, y: rule.y,
 				width: rule.width, height: rule.height,
+				screenIndex: rule.screen,
 				spacing: spacing
 			)
 			setWindowFrame(window, origin: origin, size: size)

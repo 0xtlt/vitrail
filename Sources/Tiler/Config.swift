@@ -5,6 +5,7 @@ import Foundation
 struct WindowRule {
 	let app: String
 	let title: String?
+	let screen: Int // 1 = primary, 2 = secondary, etc.
 	let x: Double
 	let y: Double
 	let width: Double
@@ -62,6 +63,7 @@ struct Config {
 			currentWindows.append(WindowRule(
 				app: app,
 				title: currentWindow["title"],
+				screen: Int(currentWindow["screen"] ?? "1") ?? 1,
 				x: Double(currentWindow["x"] ?? "0") ?? 0,
 				y: Double(currentWindow["y"] ?? "0") ?? 0,
 				width: Double(currentWindow["width"] ?? "100") ?? 100,

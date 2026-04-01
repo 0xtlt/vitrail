@@ -1,44 +1,49 @@
 import AppKit
 
 struct Screen {
-	/// Usable screen area (excludes menu bar and dock)
-	static var visibleFrame: CGRect {
-		NSScreen.main?.visibleFrame ?? .zero
+	/// Get screen by index (1-based). Falls back to main screen.
+	static func screen(at index: Int) -> NSScreen {
+		let screens = NSScreen.screens
+		if index >= 1, index <= screens.count {
+			return screens[index - 1]
+		}
+		return NSScreen.main ?? screens[0]
 	}
 
-	/// Full screen frame including menu bar
-	static var fullFrame: CGRect {
-		NSScreen.main?.frame ?? .zero
-	}
-
-	/// Convert spacing to pixels
-	static func spacingPixels(_ spacing: Spacing) -> Double {
+	/// Convert spacing to pixels relative to a screen
+	static func spacingPixels(_ spacing: Spacing, screen: NSScreen) -> Double {
 		if spacing.isPercent {
-			let minDim = min(visibleFrame.width, visibleFrame.height)
+			let minDim = min(screen.visibleFrame.width, screen.visibleFrame.height)
 			return minDim * spacing.value / 100.0
 		} else {
 			return spacing.value
 		}
 	}
 
-	/// Convert percentage-based rect to pixel coordinates (AX top-left origin) with spacing
+	/// Convert percentage-based rect to pixel coordinates (AX top-left origin) on a specific screen
 	static func percentToPixels(
 		x: Double, y: Double, width: Double, height: Double,
+		screenIndex: Int = 1,
 		spacing: Spacing = .default
 	) -> (CGPoint, CGSize) {
-		let visible = visibleFrame
-		let full = fullFrame
-		let gap = spacingPixels(spacing)
+		let targetScreen = screen(at: screenIndex)
+		let primaryScreen = NSScreen.screens.first ?? targetScreen
+		let visible = targetScreen.visibleFrame
+		let gap = spacingPixels(spacing, screen: targetScreen)
 
-		let menuBarHeight = full.height - visible.maxY
+		// AX API uses top-left origin relative to primary screen's top-left
+		// NSScreen uses bottom-left origin
+		let primaryHeight = primaryScreen.frame.height
 
 		// Raw position and size from percentages
 		let rawX = visible.origin.x + (visible.width * x / 100.0)
-		let rawY = menuBarHeight + (visible.height * y / 100.0)
-		let rawW = visible.width * width / 100.0
+		// Convert from NSScreen bottom-left to AX top-left
+		let rawNSY = visible.origin.y + visible.height - (visible.height * y / 100.0)
 		let rawH = visible.height * height / 100.0
+		let rawW = visible.width * width / 100.0
+		let axY = primaryHeight - rawNSY
 
-		// Apply spacing: outer gap on edges, half gap between windows
+		// Apply spacing
 		let isLeftEdge = x < 1
 		let isTopEdge = y < 1
 		let isRightEdge = (x + width) > 99
@@ -50,7 +55,7 @@ struct Screen {
 		let bottomGap = isBottomEdge ? gap : gap / 2
 
 		let finalX = rawX + leftGap
-		let finalY = rawY + topGap
+		let finalY = axY + topGap
 		let finalW = rawW - leftGap - rightGap
 		let finalH = rawH - topGap - bottomGap
 
