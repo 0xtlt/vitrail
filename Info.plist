@@ -7,7 +7,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>Tiler</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.0xtlt.tiler</string>
+	<string>com.thomastastet.tiler</string>
 	<key>CFBundleVersion</key>
 	<string>1.0.0</string>
 	<key>CFBundleShortVersionString</key>
