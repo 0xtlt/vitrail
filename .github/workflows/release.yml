@@ -12,12 +12,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - arch: arm64
-            runner: macos-14
-          - arch: x86_64
-            runner: macos-13
-    runs-on: ${{ matrix.runner }}
+        arch: [arm64, x86_64]
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
