@@ -57,8 +57,8 @@ extension AXUIElement {
 
 struct WindowManager {
 	/// Check if the process is trusted for Accessibility
-	static func checkAccessibility() -> Bool {
-		let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary
+	static func checkAccessibility(prompt: Bool = true) -> Bool {
+		let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue(): prompt] as CFDictionary
 		return AXIsProcessTrustedWithOptions(options)
 	}
 
