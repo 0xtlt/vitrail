@@ -1,5 +1,7 @@
 # Vitrail
 
+[![GitHub release](https://img.shields.io/github/v/release/0xtlt/vitrail?style=flat-square)](https://github.com/0xtlt/vitrail/releases) [![homebrew](https://img.shields.io/badge/brew-0xtlt/tap/vitrail-FBB040?style=flat-square&logo=homebrew&logoColor=white)](https://github.com/0xtlt/homebrew-tap)
+
 Lightweight macOS window layout manager. Define layouts in TOML, switch with global hotkeys.
 
 No tiling tree, no automatic rearrangement — just precise window positioning with percentages.
