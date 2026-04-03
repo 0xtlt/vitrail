@@ -27,7 +27,7 @@ final class StatusBar: NSObject {
 			DispatchQueue.main.async {
 				self?.availableUpdate = release
 				self?.rebuildMenu()
-				print("[tiler] Update available: v\(release.version)")
+				print("[vitrail] Update available: v\(release.version)")
 			}
 		}
 	}
@@ -88,7 +88,7 @@ final class StatusBar: NSObject {
 
 		menu.addItem(.separator())
 
-		let quitItem = NSMenuItem(title: "Quit Tiler", action: #selector(quit), keyEquivalent: "q")
+		let quitItem = NSMenuItem(title: "Quit Vitrail", action: #selector(quit), keyEquivalent: "q")
 		quitItem.target = self
 		menu.addItem(quitItem)
 
@@ -181,7 +181,7 @@ final class StatusBar: NSObject {
 				try SMAppService.mainApp.unregister()
 			}
 		} catch {
-			print("[tiler] Failed to \(enabled ? "enable" : "disable") launch at login: \(error)")
+			print("[vitrail] Failed to \(enabled ? "enable" : "disable") launch at login: \(error)")
 		}
 	}
 }

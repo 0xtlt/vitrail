@@ -3,7 +3,7 @@ import Foundation
 struct ConfigSerializer {
 	static func serialize(_ config: Config) -> String {
 		var lines: [String] = []
-		lines.append("# Tiler config")
+		lines.append("# Vitrail config")
 		lines.append("")
 		lines.append("spacing = \"\(config.spacing.toTOMLString())\"")
 		lines.append("hide_others = \(config.hideOthers)")
@@ -43,7 +43,7 @@ struct ConfigSerializer {
 		try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
 		guard let data = serialize(config).data(using: .utf8) else {
-			throw NSError(domain: "Tiler", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode config as UTF-8"])
+			throw NSError(domain: "Vitrail", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode config as UTF-8"])
 		}
 		try data.write(to: url, options: .atomic)
 	}

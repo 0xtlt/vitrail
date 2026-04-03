@@ -13,9 +13,9 @@ if CommandLine.arguments.count > 1 {
 // ─── Check Accessibility ─────────────────────────────────────
 
 if !WindowManager.checkAccessibility() {
-	print("[tiler] Accessibility permission required.")
-	print("[tiler] Go to System Settings > Privacy & Security > Accessibility")
-	print("[tiler] Add this terminal app or the tiler binary, then restart.")
+	print("[vitrail] Accessibility permission required.")
+	print("[vitrail] Go to System Settings > Privacy & Security > Accessibility")
+	print("[vitrail] Add this terminal app or the vitrail binary, then restart.")
 	exit(1)
 }
 
@@ -25,6 +25,6 @@ do {
 	let controller = try AppController(configPath: configPath)
 	controller.start()
 } catch {
-	print("[tiler] Failed to load config from \(configPath): \(error)")
+	print("[vitrail] Failed to load config from \(configPath): \(error)")
 	exit(1)
 }

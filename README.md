@@ -1,4 +1,4 @@
-# Tiler
+# Vitrail
 
 Lightweight macOS window layout manager. Define layouts in TOML, switch with global hotkeys.
 
@@ -21,25 +21,25 @@ No tiling tree, no automatic rearrangement — just precise window positioning w
 
 ```bash
 brew tap 0xtlt/tap
-brew install tiler
+brew install vitrail
 ```
 
 ### Download DMG
 
-Grab the latest DMG from [Releases](https://github.com/0xtlt/tiler/releases) — signed and notarized.
+Grab the latest DMG from [Releases](https://github.com/0xtlt/vitrail/releases) — signed and notarized.
 
 ### From source
 
 ```bash
-git clone https://github.com/0xtlt/tiler.git
-cd tiler
+git clone https://github.com/0xtlt/vitrail.git
+cd vitrail
 swift build -c release
-cp .build/release/Tiler /usr/local/bin/tiler
+cp .build/release/Vitrail /usr/local/bin/vitrail
 ```
 
 ## Setup
 
-Create your config at `~/.config/tiler/config.toml` (or click **Edit Config...** in the menu bar):
+Create your config at `~/.config/vitrail/config.toml` (or click **Edit Config...** in the menu bar):
 
 ```toml
 spacing = "1%"
@@ -114,16 +114,16 @@ hotkey = "alt+2"
 ## Usage
 
 ```bash
-# Run with default config (~/.config/tiler/config.toml)
-tiler
+# Run with default config (~/.config/vitrail/config.toml)
+vitrail
 
 # Run with custom config
-tiler /path/to/config.toml
+vitrail /path/to/config.toml
 ```
 
 ## Permissions
 
-Tiler needs **Accessibility** permission to move and resize windows.
+Vitrail needs **Accessibility** permission to move and resize windows.
 
 On first launch, macOS will prompt you to grant access in **System Settings > Privacy & Security > Accessibility**.
 

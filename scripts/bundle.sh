@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ARCH="${1:-$(uname -m)}"
-APP_NAME="Tiler"
+APP_NAME="Vitrail"
 BUNDLE_DIR="dist/${APP_NAME}.app"
 DMG_DIR="dist/dmg"
 DMG_PATH="dist/${APP_NAME}-${ARCH}.dmg"
@@ -17,7 +17,7 @@ mkdir -p "$BUNDLE_DIR/Contents/Resources"
 
 cp ".build/release/${APP_NAME}" "$BUNDLE_DIR/Contents/MacOS/${APP_NAME}"
 cp Info.plist "$BUNDLE_DIR/Contents/Info.plist"
-cp Tiler.icns "$BUNDLE_DIR/Contents/Resources/Tiler.icns"
+cp Vitrail.icns "$BUNDLE_DIR/Contents/Resources/Vitrail.icns"
 
 echo "Creating DMG..."
 mkdir -p "$DMG_DIR"

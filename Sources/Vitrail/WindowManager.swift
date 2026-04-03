@@ -114,7 +114,7 @@ struct WindowManager {
 
 	/// Apply a complete layout
 	static func applyLayout(_ layout: Layout, spacing: Spacing = .default, hideOthers: Bool = true) {
-		print("[tiler] Applying layout: \(layout.name)")
+		print("[vitrail] Applying layout: \(layout.name)")
 
 		// Collect all windows first, then raise in reverse order
 		// so the last window in config ends up on top
@@ -122,7 +122,7 @@ struct WindowManager {
 
 		for rule in layout.windows {
 			guard let (window, app) = findWindow(appName: rule.app, titleContains: rule.title) else {
-				print("[tiler]   Window not found: \(rule.app)" + (rule.title.map { " (\($0))" } ?? ""))
+				print("[vitrail]   Window not found: \(rule.app)" + (rule.title.map { " (\($0))" } ?? ""))
 				continue
 			}
 			matched.append((window, app, rule))
@@ -143,7 +143,7 @@ struct WindowManager {
 				spacing: spacing
 			)
 			setWindowFrame(window, origin: origin, size: size)
-			print("[tiler]   \(rule.app) → \(Int(origin.x)),\(Int(origin.y)) \(Int(size.width))x\(Int(size.height))")
+			print("[vitrail]   \(rule.app) → \(Int(origin.x)),\(Int(origin.y)) \(Int(size.width))x\(Int(size.height))")
 		}
 
 		// Hide other apps if enabled

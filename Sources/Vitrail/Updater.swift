@@ -1,8 +1,8 @@
 import Foundation
 
 struct Updater {
-	static let currentVersion = "1.1.0"
-	static let repo = "0xtlt/tiler"
+	static let currentVersion = "2.0.0"
+	static let repo = "0xtlt/vitrail"
 
 	struct Release {
 		let version: String
@@ -12,8 +12,8 @@ struct Updater {
 	/// Check if installed via Homebrew
 	static var isHomebrew: Bool {
 		let paths = [
-			"/opt/homebrew/Caskroom/tiler",
-			"/usr/local/Caskroom/tiler",
+			"/opt/homebrew/Caskroom/vitrail",
+			"/usr/local/Caskroom/vitrail",
 		]
 		return paths.contains { FileManager.default.fileExists(atPath: $0) }
 	}
@@ -23,7 +23,7 @@ struct Updater {
 		let script = """
 		tell application "Terminal"
 			activate
-			do script "brew upgrade tiler"
+			do script "brew upgrade vitrail"
 		end tell
 		"""
 		if let appleScript = NSAppleScript(source: script) {

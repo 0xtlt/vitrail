@@ -14,9 +14,9 @@ final class AppController {
 
 	func start() {
 		if config.layouts.isEmpty {
-			print("[tiler] No layouts found in config. Open Configure... to add layouts.")
+			print("[vitrail] No layouts found in config. Open Configure... to add layouts.")
 		} else {
-			print("[tiler] Loaded \(config.layouts.count) layout(s)")
+			print("[vitrail] Loaded \(config.layouts.count) layout(s)")
 		}
 
 		hotKeyManager.register(layouts: config.layouts, spacing: config.spacing, hideOthers: config.hideOthers)
@@ -24,7 +24,7 @@ final class AppController {
 		statusBar = StatusBar(appController: self)
 		statusBar.setup()
 
-		print("[tiler] Listening for hotkeys... (ctrl+c to quit)")
+		print("[vitrail] Listening for hotkeys... (ctrl+c to quit)")
 
 		let app = NSApplication.shared
 		app.setActivationPolicy(.accessory)
@@ -58,9 +58,9 @@ final class AppController {
 			hotKeyManager.unregisterAll()
 			hotKeyManager.register(layouts: config.layouts, spacing: config.spacing, hideOthers: config.hideOthers)
 			statusBar.rebuildMenu()
-			print("[tiler] Config reloaded (\(config.layouts.count) layout(s))")
+			print("[vitrail] Config reloaded (\(config.layouts.count) layout(s))")
 		} catch {
-			print("[tiler] Failed to reload config: \(error)")
+			print("[vitrail] Failed to reload config: \(error)")
 		}
 	}
 
@@ -83,7 +83,7 @@ final class AppController {
 
 		if !fm.fileExists(atPath: path) {
 			let defaultConfig = """
-			# Tiler config
+			# Vitrail config
 			spacing = "1%"
 			hide_others = true
 

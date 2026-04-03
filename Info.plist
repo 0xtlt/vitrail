@@ -3,19 +3,19 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>Tiler</string>
+	<string>Vitrail</string>
 	<key>CFBundleDisplayName</key>
-	<string>Tiler</string>
+	<string>Vitrail</string>
 	<key>CFBundleIdentifier</key>
-	<string>com.thomastastet.tiler</string>
+	<string>com.thomastastet.vitrail</string>
 	<key>CFBundleVersion</key>
-	<string>1.1.0</string>
+	<string>2.0.0</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.0</string>
+	<string>2.0.0</string>
 	<key>CFBundleExecutable</key>
-	<string>Tiler</string>
+	<string>Vitrail</string>
 	<key>CFBundleIconFile</key>
-	<string>Tiler</string>
+	<string>Vitrail</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>LSMinimumSystemVersion</key>

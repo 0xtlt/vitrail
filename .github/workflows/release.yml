@@ -37,8 +37,8 @@ jobs:
 
       - name: Sign app
         run: |
-          codesign --force --options runtime --sign "Developer ID Application" --deep "dist/Tiler.app"
-          codesign --verify --verbose "dist/Tiler.app"
+          codesign --force --options runtime --sign "Developer ID Application" --deep "dist/Vitrail.app"
+          codesign --verify --verbose "dist/Vitrail.app"
 
       - name: Notarize
         env:
@@ -47,28 +47,28 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           # Notarize the app (submit as zip, staple the .app)
-          ditto -c -k --keepParent "dist/Tiler.app" "dist/Tiler-notarize.zip"
-          xcrun notarytool submit "dist/Tiler-notarize.zip" \
+          ditto -c -k --keepParent "dist/Vitrail.app" "dist/Vitrail-notarize.zip"
+          xcrun notarytool submit "dist/Vitrail-notarize.zip" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_ID_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
-          xcrun stapler staple "dist/Tiler.app"
-          rm "dist/Tiler-notarize.zip"
+          xcrun stapler staple "dist/Vitrail.app"
+          rm "dist/Vitrail-notarize.zip"
 
       - name: Create DMG with stapled app
         run: |
-          rm -f "dist/Tiler-${{ matrix.arch }}.dmg"
+          rm -f "dist/Vitrail-${{ matrix.arch }}.dmg"
           mkdir -p dist/dmg
-          cp -r dist/Tiler.app dist/dmg/
+          cp -r dist/Vitrail.app dist/dmg/
           ln -s /Applications dist/dmg/Applications
-          hdiutil create -volname "Tiler" \
+          hdiutil create -volname "Vitrail" \
             -srcfolder dist/dmg \
             -ov -format UDZO \
-            "dist/Tiler-${{ matrix.arch }}.dmg"
+            "dist/Vitrail-${{ matrix.arch }}.dmg"
           rm -rf dist/dmg
 
       - name: Upload to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" "dist/Tiler-${{ matrix.arch }}.dmg" --clobber
+        run: gh release upload "${{ github.event.release.tag_name }}" "dist/Vitrail-${{ matrix.arch }}.dmg" --clobber

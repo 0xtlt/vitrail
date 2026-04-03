@@ -140,6 +140,6 @@ struct Config {
 
 	/// Default config path
 	static var defaultPath: String {
-		"~/.config/tiler/config.toml"
+		"~/.config/vitrail/config.toml"
 	}
 }

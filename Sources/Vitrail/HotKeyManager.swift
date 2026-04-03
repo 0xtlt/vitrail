@@ -19,7 +19,7 @@ final class HotKeyManager {
 	func register(layouts: [Layout], spacing: Spacing, hideOthers: Bool) {
 		for layout in layouts {
 			guard let (key, modifiers) = Self.parseHotkey(layout.hotkey) else {
-				print("[tiler] Invalid hotkey: \(layout.hotkey)")
+				print("[vitrail] Invalid hotkey: \(layout.hotkey)")
 				continue
 			}
 
@@ -31,7 +31,7 @@ final class HotKeyManager {
 				WindowManager.applyLayout(capturedLayout, spacing: capturedSpacing, hideOthers: capturedHide)
 			}
 			hotKeys.append(hotKey)
-			print("[tiler] Registered: \(layout.hotkey) → \(layout.name)")
+			print("[vitrail] Registered: \(layout.hotkey) → \(layout.name)")
 		}
 	}
 

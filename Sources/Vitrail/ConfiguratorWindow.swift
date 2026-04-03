@@ -18,7 +18,7 @@ final class ConfiguratorWindow: NSObject, NSWindowDelegate {
 				try ConfigSerializer.save(config, to: appController.configPath)
 				appController.reload()
 			} catch {
-				print("[tiler] Failed to save config: \(error)")
+				print("[vitrail] Failed to save config: \(error)")
 			}
 		}
 		vc.onClose = { [weak self] in
@@ -35,7 +35,7 @@ final class ConfiguratorWindow: NSObject, NSWindowDelegate {
 			defer: false
 		)
 		window.contentViewController = vc
-		window.title = "Tiler Configuration"
+		window.title = "Vitrail Configuration"
 		window.minSize = NSSize(width: 620, height: 420)
 		window.maxSize = NSSize(width: 1000, height: 700)
 		window.center()
