@@ -9,9 +9,9 @@
 	<key>CFBundleIdentifier</key>
 	<string>com.thomastastet.vitrail</string>
 	<key>CFBundleVersion</key>
-	<string>2.2.0</string>
+	<string>2.2.1</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.2.0</string>
+	<string>2.2.1</string>
 	<key>CFBundleExecutable</key>
 	<string>Vitrail</string>
 	<key>CFBundleIconFile</key>

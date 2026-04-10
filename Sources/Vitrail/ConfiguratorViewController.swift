@@ -22,7 +22,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	// MARK: - UI — Sidebar
 
-	private let sidebarView = NSView()
+	private let sidebarView = NSVisualEffectView()
 	private let layoutStack = NSStackView()
 	private let addLayoutBtn = NSButton()
 	private let spacingField = NSTextField()
@@ -110,8 +110,9 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	// MARK: - Build Sidebar
 
 	private func buildSidebar() {
-		sidebarView.wantsLayer = true
-		sidebarView.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
+		sidebarView.material = .sidebar
+		sidebarView.blendingMode = .withinWindow
+		sidebarView.state = .active
 
 		// Layout list
 		layoutStack.orientation = .vertical
@@ -974,4 +975,3 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		}
 	}
 }
-

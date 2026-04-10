@@ -1,7 +1,7 @@
 import Foundation
 
 struct Updater {
-	static let currentVersion = "2.2.0"
+	static let currentVersion = "2.2.1"
 	static let repo = "0xtlt/vitrail"
 
 	struct Release {
