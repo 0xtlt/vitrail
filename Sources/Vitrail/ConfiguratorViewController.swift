@@ -1,6 +1,6 @@
 import AppKit
 
-final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, NSTextFieldDelegate, NSGestureRecognizerDelegate {
+final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, NSTextFieldDelegate {
 
 	// MARK: - Data
 
@@ -489,6 +489,9 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		row.translatesAutoresizingMaskIntoConstraints = false
 		row.wantsLayer = true
 
+		let selectArea = NSView()
+		selectArea.translatesAutoresizingMaskIntoConstraints = false
+
 		let label = NSTextField(labelWithString: name)
 		label.font = .systemFont(ofSize: 13)
 		label.lineBreakMode = .byTruncatingTail
@@ -503,6 +506,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		let del = NSButton(image: NSImage(systemSymbolName: "xmark.circle.fill", accessibilityDescription: "Delete")!, target: self, action: #selector(deleteLayoutClicked(_:)))
 		del.bezelStyle = .inline
 		del.isBordered = false
+		del.tag = index
 		del.translatesAutoresizingMaskIntoConstraints = false
 
 		if selected {
@@ -517,20 +521,26 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 			del.contentTintColor = .tertiaryLabelColor
 		}
 
-		row.addSubview(label)
-		row.addSubview(hkLabel)
+		row.addSubview(selectArea)
+		selectArea.addSubview(label)
+		selectArea.addSubview(hkLabel)
 		row.addSubview(del)
 
 		NSLayoutConstraint.activate([
 			row.heightAnchor.constraint(equalToConstant: 30),
 			row.widthAnchor.constraint(equalToConstant: 176),
 
-			label.leadingAnchor.constraint(equalTo: row.leadingAnchor, constant: 10),
-			label.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+			selectArea.leadingAnchor.constraint(equalTo: row.leadingAnchor),
+			selectArea.topAnchor.constraint(equalTo: row.topAnchor),
+			selectArea.bottomAnchor.constraint(equalTo: row.bottomAnchor),
+			selectArea.trailingAnchor.constraint(equalTo: del.leadingAnchor, constant: -6),
+
+			label.leadingAnchor.constraint(equalTo: selectArea.leadingAnchor, constant: 10),
+			label.centerYAnchor.constraint(equalTo: selectArea.centerYAnchor),
 
 			hkLabel.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 4),
-			hkLabel.trailingAnchor.constraint(equalTo: del.leadingAnchor, constant: -6),
-			hkLabel.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+			hkLabel.trailingAnchor.constraint(equalTo: selectArea.trailingAnchor),
+			hkLabel.centerYAnchor.constraint(equalTo: selectArea.centerYAnchor),
 			hkLabel.widthAnchor.constraint(lessThanOrEqualToConstant: 60),
 
 			del.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -6),
@@ -540,18 +550,9 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		])
 
 		let click = NSClickGestureRecognizer(target: self, action: #selector(sidebarRowClicked(_:)))
-		click.delegate = self
-		row.addGestureRecognizer(click)
+		selectArea.addGestureRecognizer(click)
 
 		return row
-	}
-
-	// Allow gesture only if click is NOT on a button (so delete button works)
-	func gestureRecognizer(_ gestureRecognizer: NSGestureRecognizer, shouldAttemptToRecognizeWith event: NSEvent) -> Bool {
-		guard let row = gestureRecognizer.view else { return true }
-		let pt = row.convert(event.locationInWindow, from: nil)
-		let hit = row.hitTest(pt)
-		return !(hit is NSButton)
 	}
 
 	private func indexOfSidebarRow(_ view: NSView) -> Int? {
@@ -608,7 +609,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	// MARK: - Actions — Sidebar
 
 	@objc private func sidebarRowClicked(_ sender: NSClickGestureRecognizer) {
-		guard let row = sender.view, let idx = indexOfSidebarRow(row) else { return }
+		guard let selectArea = sender.view, let row = selectArea.superview, let idx = indexOfSidebarRow(row) else { return }
 		selectedLayoutIndex = idx
 		selectedWindowID = nil
 		refreshSidebar()
@@ -639,7 +640,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	}
 
 	@objc private func deleteLayoutClicked(_ sender: NSButton) {
-		guard let row = sender.superview, let idx = indexOfSidebarRow(row) else { return }
+		let idx = sender.tag
 		guard layouts.indices.contains(idx) else { return }
 
 		let name = layouts[idx].name.isEmpty ? "Untitled" : layouts[idx].name
