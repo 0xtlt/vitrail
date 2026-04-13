@@ -82,11 +82,12 @@ enum ConfigConvert {
 struct AppInfo: Identifiable, Equatable {
 	let id: String
 	let name: String
+	let displayName: String
 	let icon: NSImage
 	let isRunning: Bool
 
 	static func == (lhs: AppInfo, rhs: AppInfo) -> Bool {
-		lhs.id == rhs.id && lhs.name == rhs.name && lhs.isRunning == rhs.isRunning
+		lhs.id == rhs.id && lhs.name == rhs.name && lhs.displayName == rhs.displayName && lhs.isRunning == rhs.isRunning
 	}
 }
 
@@ -95,66 +96,42 @@ final class AppDiscovery {
 		NSWorkspace.shared.runningApplications
 			.filter { $0.activationPolicy == .regular }
 			.compactMap { app -> AppInfo? in
-				guard let name = app.localizedName else { return nil }
+				let name = AppNames.preferredName(for: app)
+				let displayName = app.localizedName ?? name
 				let icon = app.icon ?? NSImage(systemSymbolName: "app", accessibilityDescription: nil) ?? NSImage()
 				return AppInfo(
 					id: app.bundleIdentifier ?? name,
 					name: name,
+					displayName: displayName,
 					icon: icon,
 					isRunning: true
 				)
 			}
-			.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+			.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 	}
 
 	static func installedApps(excludingRunning running: [AppInfo]) -> [AppInfo] {
-		let runningNames = Set(running.map { $0.name })
+		let runningIDs = Set(running.map { $0.id })
 		var apps: [AppInfo] = []
-		let fm = FileManager.default
-		let dirs = ["/Applications", "/Applications/Utilities", "/System/Applications"]
+		var seenIDs: Set<String> = []
 
-		for dir in dirs {
-			guard let contents = try? fm.contentsOfDirectory(atPath: dir) else { continue }
-			for item in contents where item.hasSuffix(".app") {
-				let path = "\(dir)/\(item)"
-				let name: String
-				if let bundle = Bundle(path: path),
-				   let bundleName = bundle.infoDictionary?["CFBundleName"] as? String {
-					name = bundleName
-				} else {
-					name = (item as NSString).deletingPathExtension
-				}
+		for record in AppNames.installedAppRecords() {
+			let id = record.bundleID ?? record.displayName
+			if runningIDs.contains(id) || !seenIDs.insert(id).inserted { continue }
 
-				if runningNames.contains(name) { continue }
-
-				let icon = NSWorkspace.shared.icon(forFile: path)
-				let bundleID = Bundle(path: path)?.bundleIdentifier ?? name
-				apps.append(AppInfo(id: bundleID, name: name, icon: icon, isRunning: false))
-			}
+			let icon = NSWorkspace.shared.icon(forFile: record.path)
+			apps.append(AppInfo(id: id, name: record.name, displayName: record.displayName, icon: icon, isRunning: false))
 		}
 
-		return apps.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+		return apps.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 	}
 
 	/// Find icon for a named app in /Applications (shared utility)
 	static func iconForApp(named name: String) -> NSImage? {
-		let fm = FileManager.default
-		for dir in ["/Applications", "/Applications/Utilities", "/System/Applications"] {
-			guard let contents = try? fm.contentsOfDirectory(atPath: dir) else { continue }
-			for item in contents where item.hasSuffix(".app") {
-				let path = "\(dir)/\(item)"
-				let appName: String
-				if let bundle = Bundle(path: path),
-				   let bn = bundle.infoDictionary?["CFBundleName"] as? String {
-					appName = bn
-				} else {
-					appName = (item as NSString).deletingPathExtension
-				}
-				if appName == name {
-					return NSWorkspace.shared.icon(forFile: path)
-				}
-			}
+		for record in AppNames.installedAppRecords() where AppNames.matches(name, installedApp: record) {
+			return NSWorkspace.shared.icon(forFile: record.path)
 		}
+
 		return nil
 	}
 }

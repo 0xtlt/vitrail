@@ -755,7 +755,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	}
 
 	private func makeAppMenuItem(_ app: AppInfo) -> NSMenuItem {
-		let item = NSMenuItem(title: app.name, action: #selector(appMenuSelected(_:)), keyEquivalent: "")
+		let item = NSMenuItem(title: app.displayName, action: #selector(appMenuSelected(_:)), keyEquivalent: "")
 		item.target = self
 		item.representedObject = app.name
 		if let icon = app.icon.copy() as? NSImage {

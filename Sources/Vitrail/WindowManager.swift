@@ -66,7 +66,7 @@ struct WindowManager {
 	/// Returns the window AXUIElement and the owning NSRunningApplication
 	static func findWindow(appName: String, titleContains: String? = nil) -> (AXUIElement, NSRunningApplication)? {
 		let apps = NSWorkspace.shared.runningApplications.filter {
-			$0.localizedName == appName
+			AppNames.matches(appName, runningApp: $0)
 		}
 
 		for app in apps {

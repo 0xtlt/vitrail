@@ -53,7 +53,7 @@ final class LayoutCanvasView: NSView {
 		if let cached = iconCache[name] { return cached }
 
 		// Check running apps
-		if let app = NSWorkspace.shared.runningApplications.first(where: { $0.localizedName == name }),
+		if let app = NSWorkspace.shared.runningApplications.first(where: { AppNames.matches(name, runningApp: $0) }),
 		   let icon = app.icon {
 			iconCache[name] = icon
 			return icon
