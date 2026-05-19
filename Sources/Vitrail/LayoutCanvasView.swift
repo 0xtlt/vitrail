@@ -94,12 +94,7 @@ final class LayoutCanvasView: NSView {
 	// MARK: - Multi-Screen Layout
 
 	var screenCount: Int {
-		NSScreen.screens.count
-	}
-
-	private var screenAspect: CGFloat {
-		guard let screen = NSScreen.main else { return 16.0 / 10.0 }
-		return screen.frame.width / screen.frame.height
+		Screen.displays.count
 	}
 
 	/// Returns the rect for a given screen index (1-based)
@@ -110,26 +105,54 @@ final class LayoutCanvasView: NSView {
 	}
 
 	private func allScreenRects() -> [NSRect] {
-		let count = max(screenCount, maxScreenInWindows())
 		let pad: CGFloat = 16
-		let gap: CGFloat = 10
-		let totalW = bounds.width - pad * 2 - gap * CGFloat(count - 1)
-		let totalH = bounds.height - pad * 2
+		let available = bounds.insetBy(dx: pad, dy: pad)
+		let displays = Screen.displays
+		let count = max(displays.count, maxScreenInWindows())
+		guard count > 0, available.width > 0, available.height > 0 else { return [] }
 
-		let singleW = totalW / CGFloat(count)
-		var singleH = singleW / screenAspect
-		var finalW = singleW
-		if singleH > totalH {
-			singleH = totalH
-			finalW = singleH * screenAspect
+		if displays.isEmpty {
+			return fallbackScreenRects(count: count, in: available)
 		}
 
-		let totalUsedW = finalW * CGFloat(count) + gap * CGFloat(count - 1)
-		let startX = (bounds.width - totalUsedW) / 2
-		let startY = (bounds.height - singleH) / 2
+		let displayBounds = displays.map(\.bounds)
+		let union = displayBounds.reduce(displayBounds[0]) { $0.union($1) }
+		guard union.width > 0, union.height > 0 else {
+			return fallbackScreenRects(count: count, in: available)
+		}
+
+		let scale = min(available.width / union.width, available.height / union.height)
+		let usedWidth = union.width * scale
+		let usedHeight = union.height * scale
+		let offsetX = available.minX + (available.width - usedWidth) / 2
+		let offsetY = available.minY + (available.height - usedHeight) / 2
+
+		var rects = displayBounds.map { display in
+			NSRect(
+				x: offsetX + (display.minX - union.minX) * scale,
+				y: offsetY + (display.minY - union.minY) * scale,
+				width: display.width * scale,
+				height: display.height * scale
+			)
+		}
+
+		if count > rects.count {
+			rects.append(contentsOf: fallbackScreenRects(count: count - rects.count, in: available))
+		}
+
+		return rects
+	}
+
+	private func fallbackScreenRects(count: Int, in available: NSRect) -> [NSRect] {
+		guard count > 0 else { return [] }
+		let gap: CGFloat = 10
+		let totalW = available.width - gap * CGFloat(count - 1)
+		let singleW = totalW / CGFloat(count)
+		let singleH = min(available.height, singleW * 10.0 / 16.0)
+		let startY = available.minY + (available.height - singleH) / 2
 
 		return (0..<count).map { i in
-			NSRect(x: startX + (finalW + gap) * CGFloat(i), y: startY, width: finalW, height: singleH)
+			NSRect(x: available.minX + (singleW + gap) * CGFloat(i), y: startY, width: singleW, height: singleH)
 		}
 	}
 
@@ -197,7 +220,7 @@ final class LayoutCanvasView: NSView {
 			bg.stroke()
 
 			// Screen label: number + name
-			let screens = NSScreen.screens
+			let screens = Screen.orderedScreens
 			let screenName = i < screens.count ? screens[i].localizedName : "Screen \(i + 1)"
 			let label = "\(i + 1) — \(screenName)"
 			let attrs: [NSAttributedString.Key: Any] = [

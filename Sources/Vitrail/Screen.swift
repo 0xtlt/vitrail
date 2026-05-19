@@ -1,9 +1,40 @@
 import AppKit
 
 struct Screen {
+	struct Display {
+		let screen: NSScreen
+		let id: CGDirectDisplayID?
+		let bounds: CGRect
+	}
+
+	static var displays: [Display] {
+		let mapped = NSScreen.screens.map { screen -> Display in
+			let id = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+			let displayBounds = id.map(CGDisplayBounds)
+			let bounds = displayBounds.flatMap { $0.isNull || $0.isEmpty ? nil : $0 } ?? screen.frame
+			return Display(screen: screen, id: id, bounds: bounds)
+		}
+
+		let sorted = mapped.sorted { lhs, rhs in
+			if lhs.bounds.minX != rhs.bounds.minX {
+				return lhs.bounds.minX < rhs.bounds.minX
+			}
+			if lhs.bounds.minY != rhs.bounds.minY {
+				return lhs.bounds.minY < rhs.bounds.minY
+			}
+			return (lhs.id ?? 0) < (rhs.id ?? 0)
+		}
+
+		return sorted.isEmpty ? mapped : sorted
+	}
+
+	static var orderedScreens: [NSScreen] {
+		displays.map(\.screen)
+	}
+
 	/// Get screen by index (1-based). Falls back to main screen.
 	static func screen(at index: Int) -> NSScreen {
-		let screens = NSScreen.screens
+		let screens = orderedScreens
 		if index >= 1, index <= screens.count {
 			return screens[index - 1]
 		}
@@ -27,7 +58,7 @@ struct Screen {
 		spacing: Spacing = .default
 	) -> (CGPoint, CGSize) {
 		let targetScreen = screen(at: screenIndex)
-		let primaryScreen = NSScreen.screens.first ?? targetScreen
+		let primaryScreen = NSScreen.main ?? targetScreen
 		let visible = targetScreen.visibleFrame
 		let gap = spacingPixels(spacing, screen: targetScreen)
 
