@@ -32,6 +32,20 @@ struct Screen {
 		displays.map(\.screen)
 	}
 
+	static func currentDisplaySetup() -> DisplaySetup {
+		let descriptors = displays.map { display in
+			DisplayDescriptor(
+				name: display.screen.localizedName,
+				isBuiltin: display.id.map(CGDisplayIsBuiltin) == 1,
+				isPrimary: display.screen == NSScreen.main,
+				scale: display.screen.backingScaleFactor,
+				frame: display.bounds
+			)
+		}
+
+		return DisplaySetup(displays: descriptors)
+	}
+
 	/// Get screen by index (1-based). Falls back to main screen.
 	static func screen(at index: Int) -> NSScreen {
 		let screens = orderedScreens

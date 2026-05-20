@@ -114,13 +114,22 @@ struct WindowManager {
 
 	/// Apply a complete layout
 	static func applyLayout(_ layout: Layout, spacing: Spacing = .default, hideOthers: Bool = true) {
-		print("[vitrail] Applying layout: \(layout.name)")
+		let setup = Screen.currentDisplaySetup()
+		guard let variant = layout.matchingVariant(for: setup) else {
+			print("[vitrail] No matching display setup for layout: \(layout.name)")
+			return
+		}
+		applyVariant(variant, layoutName: layout.name, spacing: spacing, hideOthers: hideOthers)
+	}
+
+	static func applyVariant(_ variant: LayoutVariant, layoutName: String, spacing: Spacing = .default, hideOthers: Bool = true) {
+		print("[vitrail] Applying layout: \(layoutName) / \(variant.name)")
 
 		// Collect all windows first, then raise in reverse order
 		// so the last window in config ends up on top
 		var matched: [(AXUIElement, NSRunningApplication, WindowRule)] = []
 
-		for rule in layout.windows {
+		for rule in variant.windows {
 			guard let (window, app) = findWindow(appName: rule.app, titleContains: rule.title) else {
 				print("[vitrail]   Window not found: \(rule.app)" + (rule.title.map { " (\($0))" } ?? ""))
 				continue

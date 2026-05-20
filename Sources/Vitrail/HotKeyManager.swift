@@ -17,7 +17,12 @@ final class HotKeyManager {
 	}
 
 	func register(layouts: [Layout], spacing: Spacing, hideOthers: Bool) {
+		var registeredHotkeys: Set<String> = []
 		for layout in layouts {
+			if !registeredHotkeys.insert(layout.hotkey).inserted {
+				print("[vitrail] Duplicate hotkey skipped: \(layout.hotkey)")
+				continue
+			}
 			guard let (key, modifiers) = Self.parseHotkey(layout.hotkey) else {
 				print("[vitrail] Invalid hotkey: \(layout.hotkey)")
 				continue

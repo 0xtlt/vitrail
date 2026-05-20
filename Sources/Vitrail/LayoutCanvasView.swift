@@ -23,6 +23,7 @@ final class LayoutCanvasView: NSView {
 	}
 	var selectedWindowID: UUID? { didSet { needsDisplay = true } }
 	var spacingPercent: Double = 1.0 { didSet { needsDisplay = true } }
+	var displaySetupOverride: DisplaySetup? { didSet { needsDisplay = true } }
 	var gridStep: Double = 5.0
 
 	override var isFlipped: Bool { true }
@@ -94,7 +95,7 @@ final class LayoutCanvasView: NSView {
 	// MARK: - Multi-Screen Layout
 
 	var screenCount: Int {
-		Screen.displays.count
+		displaySetupOverride?.displayCount ?? Screen.displays.count
 	}
 
 	/// Returns the rect for a given screen index (1-based)
@@ -107,15 +108,14 @@ final class LayoutCanvasView: NSView {
 	private func allScreenRects() -> [NSRect] {
 		let pad: CGFloat = 16
 		let available = bounds.insetBy(dx: pad, dy: pad)
-		let displays = Screen.displays
-		let count = max(displays.count, maxScreenInWindows())
+		let displayBounds = displaySetupOverride?.displays.map(\.frame) ?? Screen.displays.map(\.bounds)
+		let count = max(displayBounds.count, maxScreenInWindows())
 		guard count > 0, available.width > 0, available.height > 0 else { return [] }
 
-		if displays.isEmpty {
+		if displayBounds.isEmpty {
 			return fallbackScreenRects(count: count, in: available)
 		}
 
-		let displayBounds = displays.map(\.bounds)
 		let union = displayBounds.reduce(displayBounds[0]) { $0.union($1) }
 		guard union.width > 0, union.height > 0 else {
 			return fallbackScreenRects(count: count, in: available)
@@ -220,8 +220,13 @@ final class LayoutCanvasView: NSView {
 			bg.stroke()
 
 			// Screen label: number + name
-			let screens = Screen.orderedScreens
-			let screenName = i < screens.count ? screens[i].localizedName : "Screen \(i + 1)"
+			let screenName: String
+			if let setup = displaySetupOverride, i < setup.displays.count {
+				screenName = setup.displays[i].name
+			} else {
+				let screens = Screen.orderedScreens
+				screenName = i < screens.count ? screens[i].localizedName : "Screen \(i + 1)"
+			}
 			let label = "\(i + 1) — \(screenName)"
 			let attrs: [NSAttributedString.Key: Any] = [
 				.font: NSFont.systemFont(ofSize: 10, weight: .medium),

@@ -14,20 +14,27 @@ struct ConfigSerializer {
 			lines.append("name = \"\(esc(layout.name))\"")
 			lines.append("hotkey = \"\(esc(layout.hotkey))\"")
 
-			for window in layout.windows {
+			for variant in layout.variants {
 				lines.append("")
-				lines.append("  [[layout.window]]")
-				lines.append("  app = \"\(esc(window.app))\"")
-				if let title = window.title, !title.isEmpty {
-					lines.append("  title = \"\(esc(title))\"")
+				lines.append("  [[layout.variant]]")
+				lines.append("  name = \"\(esc(variant.name))\"")
+				lines.append("  display_setup = \"\(esc(variant.displaySetup.signature))\"")
+
+				for window in variant.windows {
+					lines.append("")
+					lines.append("    [[layout.variant.window]]")
+					lines.append("    app = \"\(esc(window.app))\"")
+					if let title = window.title, !title.isEmpty {
+						lines.append("    title = \"\(esc(title))\"")
+					}
+					if window.screen != 1 {
+						lines.append("    screen = \(window.screen)")
+					}
+					lines.append("    x = \(formatNumber(window.x))")
+					lines.append("    y = \(formatNumber(window.y))")
+					lines.append("    width = \(formatNumber(window.width))")
+					lines.append("    height = \(formatNumber(window.height))")
 				}
-				if window.screen != 1 {
-					lines.append("  screen = \(window.screen)")
-				}
-				lines.append("  x = \(formatNumber(window.x))")
-				lines.append("  y = \(formatNumber(window.y))")
-				lines.append("  width = \(formatNumber(window.width))")
-				lines.append("  height = \(formatNumber(window.height))")
 			}
 		}
 

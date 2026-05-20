@@ -18,6 +18,13 @@ final class StatusBar: NSObject {
 		}
 
 		rebuildMenu()
+		NotificationCenter.default.addObserver(
+			forName: NSApplication.didChangeScreenParametersNotification,
+			object: nil,
+			queue: .main
+		) { [weak self] _ in
+			self?.rebuildMenu()
+		}
 		checkForUpdate()
 	}
 
@@ -37,10 +44,37 @@ final class StatusBar: NSObject {
 		let config = appController.config
 
 		// Layouts
+		let currentSetup = Screen.currentDisplaySetup()
 		for (index, layout) in config.layouts.enumerated() {
-			let item = NSMenuItem(title: "\(layout.name) (\(layout.hotkey))", action: #selector(applyLayoutAction(_:)), keyEquivalent: "")
+			let matchingVariant = layout.matchingVariant(for: currentSetup)
+			let item = NSMenuItem(title: "\(layout.name) (\(layout.hotkey))", action: nil, keyEquivalent: "")
 			item.target = self
 			item.tag = index
+			let submenu = NSMenu()
+			if let matchingVariant {
+				let apply = NSMenuItem(title: "Apply current: \(matchingVariant.name)", action: #selector(applyLayoutAction(_:)), keyEquivalent: "")
+				apply.target = self
+				apply.tag = index
+				submenu.addItem(apply)
+			} else {
+				let noMatch = NSMenuItem(title: "No matching setup", action: nil, keyEquivalent: "")
+				noMatch.isEnabled = false
+				submenu.addItem(noMatch)
+			}
+
+			if !layout.variants.isEmpty {
+				submenu.addItem(.separator())
+				for (variantIndex, variant) in layout.variants.enumerated() {
+					let variantItem = NSMenuItem(title: variant.name, action: #selector(applyVariantAction(_:)), keyEquivalent: "")
+					variantItem.target = self
+					variantItem.representedObject = [index, variantIndex]
+					if variant.displaySetup.signature == currentSetup.signature {
+						variantItem.state = .on
+					}
+					submenu.addItem(variantItem)
+				}
+			}
+			item.submenu = submenu
 			menu.addItem(item)
 		}
 
@@ -133,6 +167,18 @@ final class StatusBar: NSObject {
 		let config = appController.config
 		guard index >= 0, index < config.layouts.count else { return }
 		WindowManager.applyLayout(config.layouts[index], spacing: config.spacing, hideOthers: config.hideOthers)
+	}
+
+	@objc private func applyVariantAction(_ sender: NSMenuItem) {
+		guard let indexes = sender.representedObject as? [Int], indexes.count == 2 else { return }
+		let layoutIndex = indexes[0]
+		let variantIndex = indexes[1]
+		let config = appController.config
+		guard config.layouts.indices.contains(layoutIndex),
+			  config.layouts[layoutIndex].variants.indices.contains(variantIndex) else { return }
+		let layout = config.layouts[layoutIndex]
+		let variant = layout.variants[variantIndex]
+		WindowManager.applyVariant(variant, layoutName: layout.name, spacing: config.spacing, hideOthers: config.hideOthers)
 	}
 
 	@objc private func openAccessibility() {

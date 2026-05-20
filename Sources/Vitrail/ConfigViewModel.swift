@@ -46,22 +46,45 @@ struct EditableLayout: Identifiable, Equatable {
 	let id = UUID()
 	var name: String
 	var hotkey: String
-	var windows: [EditableWindowRule]
+	var variants: [EditableLayoutVariant]
 
 	init(from layout: Layout) {
 		self.name = layout.name
 		self.hotkey = layout.hotkey
-		self.windows = layout.windows.map { EditableWindowRule(from: $0) }
+		self.variants = layout.variants.map { EditableLayoutVariant(from: $0) }
 	}
 
 	init() {
 		self.name = "New Layout"
 		self.hotkey = ""
-		self.windows = []
+		self.variants = [EditableLayoutVariant()]
 	}
 
 	func toLayout() -> Layout {
-		Layout(name: name, hotkey: hotkey, windows: windows.map { $0.toWindowRule() })
+		Layout(name: name, hotkey: hotkey, variants: variants.map { $0.toLayoutVariant() })
+	}
+}
+
+struct EditableLayoutVariant: Identifiable, Equatable {
+	let id = UUID()
+	var name: String
+	var displaySetup: DisplaySetup
+	var windows: [EditableWindowRule]
+
+	init(from variant: LayoutVariant) {
+		self.name = variant.name
+		self.displaySetup = variant.displaySetup
+		self.windows = variant.windows.map { EditableWindowRule(from: $0) }
+	}
+
+	init(copying windows: [EditableWindowRule] = [], setup: DisplaySetup = Screen.currentDisplaySetup()) {
+		self.name = setup.shortName
+		self.displaySetup = setup
+		self.windows = windows
+	}
+
+	func toLayoutVariant() -> LayoutVariant {
+		LayoutVariant(name: name, displaySetup: displaySetup, windows: windows.map { $0.toWindowRule() })
 	}
 }
 

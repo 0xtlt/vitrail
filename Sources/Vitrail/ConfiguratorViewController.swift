@@ -1,5 +1,23 @@
 import AppKit
 
+private final class SidebarRowView: NSView {
+	var onHoverChanged: ((Bool) -> Void)?
+
+	override func updateTrackingAreas() {
+		super.updateTrackingAreas()
+		trackingAreas.forEach { removeTrackingArea($0) }
+		addTrackingArea(NSTrackingArea(rect: bounds, options: [.mouseEnteredAndExited, .activeInActiveApp, .inVisibleRect], owner: self))
+	}
+
+	override func mouseEntered(with event: NSEvent) {
+		onHoverChanged?(true)
+	}
+
+	override func mouseExited(with event: NSEvent) {
+		onHoverChanged?(false)
+	}
+}
+
 final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, NSTextFieldDelegate {
 
 	// MARK: - Data
@@ -8,7 +26,17 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	private var spacing: String
 	private var hideOthers: Bool
 	private var selectedLayoutIndex: Int?
+	private var selectedVariantIndex: Int?
 	private var selectedWindowID: UUID?
+	private var sidebarSelections: [SidebarSelection] = []
+	private var setupEditSignaturesByTag: [Int: String] = [:]
+	private var nextSetupEditTag = 10_000
+
+	private enum SidebarSelection: Equatable {
+		case setup(String)
+		case layout(Int)
+		case variant(Int, Int)
+	}
 
 	var onSave: ((Config) -> Void)?
 	var onClose: (() -> Void)?
@@ -40,6 +68,14 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	private let nameField = NSTextField()
 	private let hotkeyRecorder = HotkeyRecorderView()
 
+	// Variant controls
+	private let variantBarView = NSView()
+	private let variantNameField = NSTextField()
+	private let setupStatusLabel = NSTextField(labelWithString: "")
+	private let captureSetupBtn = NSButton(title: "Add Current Setup", target: nil, action: nil)
+	private let duplicateVariantBtn = NSButton(title: "Copy to Current Setup", target: nil, action: nil)
+	private let deleteVariantBtn = NSButton(title: "Delete Setup", target: nil, action: nil)
+
 	// Canvas
 	private let canvasView = LayoutCanvasView()
 
@@ -60,6 +96,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	// Labels
 	private let nameLabel = NSTextField(labelWithString: "Name")
 	private let hotkeyLabel = NSTextField(labelWithString: "Hotkey")
+	private let variantNameLabel = NSTextField(labelWithString: "Setup name")
 	private let spacingLabel = NSTextField(labelWithString: "Spacing")
 	private let appLabel = NSTextField(labelWithString: "App")
 	private let titleLabel = NSTextField(labelWithString: "Title")
@@ -187,6 +224,14 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 		hotkeyRecorder.onChange = { [weak self] newHotkey in
 			guard let self, let idx = self.selectedLayoutIndex else { return }
+			let duplicate = self.layouts.enumerated().contains { otherIndex, layout in
+				otherIndex != idx && !newHotkey.isEmpty && layout.hotkey == newHotkey
+			}
+			if duplicate {
+				self.hotkeyRecorder.hotkey = self.layouts[idx].hotkey
+				self.showAlert(message: "Hotkey already used", informativeText: "Choose a different hotkey for this layout group.")
+				return
+			}
 			self.layouts[idx].hotkey = newHotkey
 			self.refreshSidebar()
 			self.updateSaveButton()
@@ -210,6 +255,38 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		headerView.addSubview(hotkeyLabel)
 		headerView.addSubview(hotkeyRecorder)
 		contentView.addSubview(headerView)
+
+		variantNameField.bezelStyle = .roundedBezel
+		variantNameField.font = .systemFont(ofSize: 12)
+		variantNameField.delegate = self
+		variantNameField.isEditable = true
+		variantNameField.isSelectable = true
+		variantNameField.placeholderString = "Variant name"
+
+		setupStatusLabel.font = .systemFont(ofSize: 11)
+		setupStatusLabel.textColor = .secondaryLabelColor
+		setupStatusLabel.lineBreakMode = .byTruncatingTail
+
+		for button in [captureSetupBtn, duplicateVariantBtn, deleteVariantBtn] {
+			button.bezelStyle = .rounded
+			button.font = .systemFont(ofSize: 11)
+			button.target = self
+			button.isHidden = true
+		}
+		captureSetupBtn.action = #selector(captureCurrentSetup)
+		duplicateVariantBtn.action = #selector(duplicateVariant)
+		deleteVariantBtn.action = #selector(deleteVariant)
+
+		variantNameLabel.font = .systemFont(ofSize: 11)
+		variantNameLabel.textColor = .secondaryLabelColor
+
+		variantBarView.addSubview(variantNameLabel)
+		variantBarView.addSubview(variantNameField)
+		variantBarView.addSubview(setupStatusLabel)
+		variantBarView.addSubview(captureSetupBtn)
+		variantBarView.addSubview(duplicateVariantBtn)
+		variantBarView.addSubview(deleteVariantBtn)
+		contentView.addSubview(variantBarView)
 
 		// Canvas
 		canvasView.delegate = self
@@ -262,7 +339,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		titleField.delegate = self
 
 		screenPopup.font = .systemFont(ofSize: 12)
-		let screenCount = NSScreen.screens.count
+		let screenCount = Screen.currentDisplaySetup().displayCount
 		for i in 1...max(screenCount, 1) { screenPopup.addItem(withTitle: "\(i)") }
 		screenPopup.target = self
 		screenPopup.action = #selector(screenChanged)
@@ -315,7 +392,8 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	private func layoutConstraints() {
 		let all: [NSView] = [sidebarView, contentView, layoutStack, addLayoutBtn, spacingLabel, spacingField, spacingUnitToggle, hideOthersCheck,
-			placeholderIcon, placeholderLabel, headerView, nameLabel, nameField, hotkeyLabel, hotkeyRecorder, canvasView,
+			placeholderIcon, placeholderLabel, headerView, nameLabel, nameField, hotkeyLabel, hotkeyRecorder,
+			variantBarView, variantNameLabel, variantNameField, setupStatusLabel, captureSetupBtn, duplicateVariantBtn, deleteVariantBtn, canvasView,
 			inspectorView, cancelBtn, saveBtn, appLabel, appField, appBrowseBtn, titleLabel, titleField, screenLabel, screenPopup,
 			xLabel, xField, yLabel, yField, wLabel, wField, hLabel, hField, addWindowBtn, deleteWindowBtn, noWindowLabel]
 		for v in all { v.translatesAutoresizingMaskIntoConstraints = false }
@@ -383,6 +461,23 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 			hotkeyRecorder.widthAnchor.constraint(equalToConstant: 120),
 			hotkeyRecorder.heightAnchor.constraint(equalToConstant: 24),
 
+			variantBarView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 8),
+			variantBarView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
+			variantBarView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
+			variantBarView.heightAnchor.constraint(equalToConstant: 54),
+
+			variantNameLabel.leadingAnchor.constraint(equalTo: variantBarView.leadingAnchor),
+			variantNameLabel.topAnchor.constraint(equalTo: variantBarView.topAnchor),
+
+			variantNameField.leadingAnchor.constraint(equalTo: variantBarView.leadingAnchor),
+			variantNameField.topAnchor.constraint(equalTo: variantNameLabel.bottomAnchor, constant: 4),
+			variantNameField.widthAnchor.constraint(equalToConstant: 150),
+			variantNameField.heightAnchor.constraint(equalToConstant: 22),
+
+			setupStatusLabel.leadingAnchor.constraint(equalTo: variantNameField.trailingAnchor, constant: 12),
+			setupStatusLabel.centerYAnchor.constraint(equalTo: variantNameField.centerYAnchor),
+			setupStatusLabel.trailingAnchor.constraint(equalTo: variantBarView.trailingAnchor),
+
 			// Buttons (anchor to bottom first)
 			saveBtn.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -12),
 			saveBtn.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
@@ -395,8 +490,8 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 			inspectorView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
 			inspectorView.heightAnchor.constraint(equalToConstant: 86),
 
-			// Canvas (fills space between header and inspector)
-			canvasView.topAnchor.constraint(equalTo: headerView.bottomAnchor, constant: 12),
+			// Canvas (fills space between variant controls and inspector)
+			canvasView.topAnchor.constraint(equalTo: variantBarView.bottomAnchor, constant: 8),
 			canvasView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 16),
 			canvasView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -16),
 			canvasView.bottomAnchor.constraint(equalTo: inspectorView.topAnchor, constant: -10),
@@ -475,17 +570,122 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	// MARK: - Refresh
 
-	private func refreshSidebar() {
-		layoutStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+	private func selectedPath() -> (layout: Int, variant: Int)? {
+		guard let layoutIndex = selectedLayoutIndex,
+			  layouts.indices.contains(layoutIndex),
+			  let variantIndex = selectedVariantIndex,
+			  layouts[layoutIndex].variants.indices.contains(variantIndex) else { return nil }
+		return (layoutIndex, variantIndex)
+	}
 
-		for (i, layout) in layouts.enumerated() {
-			let row = makeSidebarRow(name: layout.name.isEmpty ? "Untitled" : layout.name, hotkey: layout.hotkey, index: i, selected: i == selectedLayoutIndex)
-			layoutStack.addArrangedSubview(row)
+	private func currentWindows() -> [EditableWindowRule] {
+		guard let path = selectedPath() else { return [] }
+		return layouts[path.layout].variants[path.variant].windows
+	}
+
+	private func setCurrentWindows(_ windows: [EditableWindowRule]) {
+		guard let path = selectedPath() else { return }
+		layouts[path.layout].variants[path.variant].windows = windows
+		canvasView.windows = windows
+	}
+
+	private func currentVariant() -> EditableLayoutVariant? {
+		guard let path = selectedPath() else { return nil }
+		return layouts[path.layout].variants[path.variant]
+	}
+
+	private func setupName(for signature: String) -> String {
+		for layout in layouts {
+			if let variant = layout.variants.first(where: { $0.displaySetup.signature == signature }) {
+				return variant.name.isEmpty ? variant.displaySetup.shortName : variant.name
+			}
+		}
+		return DisplaySetup.decode(signature)?.shortName ?? "Setup"
+	}
+
+	private func renameSetup(signature: String, name: String) {
+		for layoutIndex in layouts.indices {
+			for variantIndex in layouts[layoutIndex].variants.indices
+				where layouts[layoutIndex].variants[variantIndex].displaySetup.signature == signature {
+				layouts[layoutIndex].variants[variantIndex].name = name
+			}
 		}
 	}
 
-	private func makeSidebarRow(name: String, hotkey: String, index: Int, selected: Bool) -> NSView {
-		let row = NSView()
+	private func ensureVariantSelection() {
+		guard let layoutIndex = selectedLayoutIndex, layouts.indices.contains(layoutIndex) else {
+			selectedVariantIndex = nil
+			return
+		}
+		if layouts[layoutIndex].variants.isEmpty {
+			layouts[layoutIndex].variants.append(EditableLayoutVariant())
+		}
+		if let variantIndex = selectedVariantIndex, layouts[layoutIndex].variants.indices.contains(variantIndex) {
+			return
+		}
+		selectedVariantIndex = 0
+	}
+
+	private func refreshSidebar() {
+		layoutStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+		sidebarSelections = []
+		setupEditSignaturesByTag = [:]
+		nextSetupEditTag = 10_000
+		let currentSignature = Screen.currentDisplaySetup().signature
+		var setupOrder: [(signature: String, name: String)] = []
+		var seenSetups: Set<String> = []
+
+		for layout in layouts {
+			for variant in layout.variants {
+					let signature = variant.displaySetup.signature
+					if seenSetups.insert(signature).inserted {
+						setupOrder.append((signature, variant.name.isEmpty ? variant.displaySetup.shortName : variant.name))
+					}
+			}
+		}
+
+		setupOrder.sort { lhs, rhs in
+			if lhs.signature == currentSignature { return true }
+			if rhs.signature == currentSignature { return false }
+			return lhs.name.localizedCaseInsensitiveCompare(rhs.name) == .orderedAscending
+		}
+
+		for setup in setupOrder {
+				let row = makeSidebarRow(
+				name: setup.name,
+				detail: setup.signature == currentSignature ? "current" : "",
+				index: -1,
+				selected: false,
+				kind: .setupHeader,
+				setupSignature: setup.signature
+			)
+			sidebarSelections.append(.setup(setup.signature))
+			layoutStack.addArrangedSubview(row)
+
+			for (layoutIndex, layout) in layouts.enumerated() {
+				guard let variantIndex = layout.variants.firstIndex(where: { $0.displaySetup.signature == setup.signature }) else { continue }
+				let selected = layoutIndex == selectedLayoutIndex && variantIndex == selectedVariantIndex
+				let layoutRow = makeSidebarRow(
+					name: layout.name.isEmpty ? "Untitled" : layout.name,
+					detail: layout.hotkey,
+					index: layoutIndex,
+					selected: selected,
+					kind: .layoutChild,
+					setupSignature: nil
+				)
+				sidebarSelections.append(.variant(layoutIndex, variantIndex))
+				layoutStack.addArrangedSubview(layoutRow)
+			}
+		}
+	}
+
+	private enum SidebarRowKind {
+		case setupHeader
+		case layoutChild
+	}
+
+	private func makeSidebarRow(name: String, detail: String, index: Int, selected: Bool, kind: SidebarRowKind, setupSignature: String?) -> NSView {
+		let row = SidebarRowView()
 		row.translatesAutoresizingMaskIntoConstraints = false
 		row.wantsLayer = true
 
@@ -493,11 +693,11 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		selectArea.translatesAutoresizingMaskIntoConstraints = false
 
 		let label = NSTextField(labelWithString: name)
-		label.font = .systemFont(ofSize: 13)
+		label.font = .systemFont(ofSize: kind == .setupHeader ? 13 : 12, weight: kind == .setupHeader ? .medium : .regular)
 		label.lineBreakMode = .byTruncatingTail
 		label.translatesAutoresizingMaskIntoConstraints = false
 
-		let hkLabel = NSTextField(labelWithString: hotkey)
+		let hkLabel = NSTextField(labelWithString: detail)
 		hkLabel.font = .systemFont(ofSize: 10)
 		hkLabel.alignment = .right
 		hkLabel.lineBreakMode = .byTruncatingTail
@@ -507,7 +707,25 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		del.bezelStyle = .inline
 		del.isBordered = false
 		del.tag = index
+		del.isHidden = kind == .setupHeader
 		del.translatesAutoresizingMaskIntoConstraints = false
+
+		let edit = NSButton(image: NSImage(systemSymbolName: "pencil", accessibilityDescription: "Rename setup")!, target: self, action: #selector(renameSetupClicked(_:)))
+		edit.bezelStyle = .inline
+		edit.isBordered = false
+		edit.translatesAutoresizingMaskIntoConstraints = false
+		edit.isHidden = kind != .setupHeader
+		edit.alphaValue = 0
+		edit.contentTintColor = .tertiaryLabelColor
+		edit.toolTip = "Rename setup"
+		if let setupSignature {
+			edit.tag = nextSetupEditTag
+			setupEditSignaturesByTag[edit.tag] = setupSignature
+			nextSetupEditTag += 1
+		}
+		row.onHoverChanged = { hovering in
+			edit.animator().alphaValue = hovering ? 1 : 0
+		}
 
 		if selected {
 			row.layer?.backgroundColor = NSColor.controlAccentColor.cgColor
@@ -524,6 +742,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		row.addSubview(selectArea)
 		selectArea.addSubview(label)
 		selectArea.addSubview(hkLabel)
+		row.addSubview(edit)
 		row.addSubview(del)
 
 		NSLayoutConstraint.activate([
@@ -533,9 +752,9 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 			selectArea.leadingAnchor.constraint(equalTo: row.leadingAnchor),
 			selectArea.topAnchor.constraint(equalTo: row.topAnchor),
 			selectArea.bottomAnchor.constraint(equalTo: row.bottomAnchor),
-			selectArea.trailingAnchor.constraint(equalTo: del.leadingAnchor, constant: -6),
+			selectArea.trailingAnchor.constraint(equalTo: kind == .setupHeader ? edit.leadingAnchor : del.leadingAnchor, constant: -6),
 
-			label.leadingAnchor.constraint(equalTo: selectArea.leadingAnchor, constant: 10),
+			label.leadingAnchor.constraint(equalTo: selectArea.leadingAnchor, constant: kind == .setupHeader ? 10 : 22),
 			label.centerYAnchor.constraint(equalTo: selectArea.centerYAnchor),
 
 			hkLabel.leadingAnchor.constraint(greaterThanOrEqualTo: label.trailingAnchor, constant: 4),
@@ -547,10 +766,17 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 			del.centerYAnchor.constraint(equalTo: row.centerYAnchor),
 			del.widthAnchor.constraint(equalToConstant: 16),
 			del.heightAnchor.constraint(equalToConstant: 16),
+
+			edit.trailingAnchor.constraint(equalTo: row.trailingAnchor, constant: -6),
+			edit.centerYAnchor.constraint(equalTo: row.centerYAnchor),
+			edit.widthAnchor.constraint(equalToConstant: 16),
+			edit.heightAnchor.constraint(equalToConstant: 16),
 		])
 
-		let click = NSClickGestureRecognizer(target: self, action: #selector(sidebarRowClicked(_:)))
-		selectArea.addGestureRecognizer(click)
+		if kind == .layoutChild {
+			let click = NSClickGestureRecognizer(target: self, action: #selector(sidebarRowClicked(_:)))
+			selectArea.addGestureRecognizer(click)
+		}
 
 		return row
 	}
@@ -561,8 +787,10 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	private func refreshContent() {
 		updateSaveButton()
+		ensureVariantSelection()
 		let hasLayout = selectedLayoutIndex != nil
 		headerView.isHidden = !hasLayout
+		variantBarView.isHidden = !hasLayout
 		canvasView.isHidden = !hasLayout
 		inspectorView.isHidden = !hasLayout
 		placeholderIcon.isHidden = hasLayout
@@ -574,7 +802,15 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		nameField.stringValue = layout.name
 		hotkeyRecorder.hotkey = layout.hotkey
 
-		canvasView.windows = layout.windows
+			if let variant = currentVariant() {
+			variantNameField.stringValue = setupName(for: variant.displaySetup.signature)
+			let currentSetup = Screen.currentDisplaySetup()
+			setupStatusLabel.stringValue = variant.displaySetup.signature == currentSetup.signature
+				? "Current setup matches this variant"
+				: "Selected setup: \(variant.displaySetup.displayCount) display(s)"
+			canvasView.displaySetupOverride = variant.displaySetup
+		}
+		canvasView.windows = currentWindows()
 		canvasView.spacingPercent = Spacing.parse(spacing).isPercent ? Spacing.parse(spacing).value : 0
 		canvasView.selectedWindowID = selectedWindowID
 
@@ -583,7 +819,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	private func refreshInspector() {
 		let hasWindow = selectedWindowID != nil
-		let multiScreen = NSScreen.screens.count > 1
+		let multiScreen = (currentVariant()?.displaySetup.displayCount ?? Screen.currentDisplaySetup().displayCount) > 1
 
 		for v: NSView in [appLabel, appField, appBrowseBtn, titleLabel, titleField,
 						   xLabel, xField, yLabel, yField, wLabel, wField, hLabel, hField, deleteWindowBtn] {
@@ -594,8 +830,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		noWindowLabel.isHidden = hasWindow
 
 		guard let wid = selectedWindowID,
-			  let idx = selectedLayoutIndex, layouts.indices.contains(idx),
-			  let rule = layouts[idx].windows.first(where: { $0.id == wid }) else { return }
+			  let rule = currentWindows().first(where: { $0.id == wid }) else { return }
 
 		appField.stringValue = rule.app
 		titleField.stringValue = rule.title
@@ -608,9 +843,40 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	// MARK: - Actions — Sidebar
 
+	@objc private func renameSetupClicked(_ sender: NSButton) {
+		guard let signature = setupEditSignaturesByTag[sender.tag] else { return }
+		let alert = NSAlert()
+		alert.messageText = "Rename setup"
+		alert.informativeText = "This name is shared by every layout under this display setup."
+		let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+		field.stringValue = setupName(for: signature)
+		alert.accessoryView = field
+		alert.addButton(withTitle: "Rename")
+		alert.addButton(withTitle: "Cancel")
+		guard alert.runModal() == .alertFirstButtonReturn else { return }
+		let newName = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+		guard !newName.isEmpty else { return }
+		renameSetup(signature: signature, name: newName)
+		if currentVariant()?.displaySetup.signature == signature {
+			variantNameField.stringValue = newName
+		}
+		refreshSidebar()
+		updateSaveButton()
+	}
+
 	@objc private func sidebarRowClicked(_ sender: NSClickGestureRecognizer) {
 		guard let selectArea = sender.view, let row = selectArea.superview, let idx = indexOfSidebarRow(row) else { return }
-		selectedLayoutIndex = idx
+		guard sidebarSelections.indices.contains(idx) else { return }
+		switch sidebarSelections[idx] {
+		case .setup:
+			return
+		case .layout(let layoutIndex):
+			selectedLayoutIndex = layoutIndex
+			selectedVariantIndex = layouts[layoutIndex].variants.isEmpty ? nil : 0
+		case .variant(let layoutIndex, let variantIndex):
+			selectedLayoutIndex = layoutIndex
+			selectedVariantIndex = variantIndex
+		}
 		selectedWindowID = nil
 		refreshSidebar()
 		refreshContent()
@@ -621,6 +887,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		layout.hotkey = nextAvailableHotkey()
 		layouts.append(layout)
 		selectedLayoutIndex = layouts.count - 1
+		selectedVariantIndex = 0
 		selectedWindowID = nil
 		refreshSidebar()
 		refreshContent()
@@ -656,6 +923,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 		layouts.remove(at: idx)
 		if selectedLayoutIndex == idx {
 			selectedLayoutIndex = layouts.isEmpty ? nil : max(0, idx - 1)
+			selectedVariantIndex = selectedLayoutIndex == nil ? nil : 0
 		} else if let sel = selectedLayoutIndex, sel > idx {
 			selectedLayoutIndex = sel - 1
 		}
@@ -683,24 +951,72 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	// MARK: - Actions — Content
 
+	@objc private func captureCurrentSetup() {
+		guard let layoutIndex = selectedLayoutIndex, layouts.indices.contains(layoutIndex) else { return }
+		let setup = Screen.currentDisplaySetup()
+		if let existing = layouts[layoutIndex].variants.firstIndex(where: { $0.displaySetup.signature == setup.signature }) {
+			selectedVariantIndex = existing
+			selectedWindowID = nil
+			refreshSidebar()
+			refreshContent()
+			return
+		}
+		let copiedWindows = currentWindows()
+		layouts[layoutIndex].variants.append(EditableLayoutVariant(copying: copiedWindows, setup: setup))
+		selectedVariantIndex = layouts[layoutIndex].variants.count - 1
+		selectedWindowID = nil
+		refreshSidebar()
+		refreshContent()
+		updateSaveButton()
+	}
+
+	@objc private func duplicateVariant() {
+		guard let path = selectedPath() else { return }
+		let variant = layouts[path.layout].variants[path.variant]
+		let setup = Screen.currentDisplaySetup()
+		if layouts[path.layout].variants.contains(where: { $0.displaySetup.signature == setup.signature }) {
+			showAlert(message: "Current setup already exists", informativeText: "Select the existing variant or connect a different display setup before duplicating.")
+			return
+		}
+		var copy = EditableLayoutVariant(copying: variant.windows, setup: setup)
+		copy.name = setup.shortName
+		layouts[path.layout].variants.append(copy)
+		selectedVariantIndex = layouts[path.layout].variants.count - 1
+		selectedWindowID = nil
+		refreshSidebar()
+		refreshContent()
+		updateSaveButton()
+	}
+
+	@objc private func deleteVariant() {
+		guard let path = selectedPath(), layouts[path.layout].variants.count > 1 else { return }
+		layouts[path.layout].variants.remove(at: path.variant)
+		selectedVariantIndex = max(0, path.variant - 1)
+		selectedWindowID = nil
+		refreshSidebar()
+		refreshContent()
+		updateSaveButton()
+	}
+
 	@objc private func addWindow() {
-		guard let idx = selectedLayoutIndex else { return }
 		let rule = EditableWindowRule()
-		layouts[idx].windows.append(rule)
+		var windows = currentWindows()
+		windows.append(rule)
+		setCurrentWindows(windows)
 		selectedWindowID = rule.id
-		canvasView.windows = layouts[idx].windows
 		canvasView.selectedWindowID = rule.id
 		refreshInspector()
 		updateSaveButton()
 	}
 
 	@objc private func deleteSelectedWindow() {
-		guard let idx = selectedLayoutIndex, let wid = selectedWindowID,
-			  let rule = layouts[idx].windows.first(where: { $0.id == wid }) else { return }
+		guard let wid = selectedWindowID,
+			  let rule = currentWindows().first(where: { $0.id == wid }) else { return }
 		confirmDeleteWindow(name: rule.app.isEmpty ? "this window" : "\"\(rule.app)\"") { [self] in
-			layouts[idx].windows.removeAll { $0.id == wid }
+			var windows = currentWindows()
+			windows.removeAll { $0.id == wid }
+			setCurrentWindows(windows)
 			selectedWindowID = nil
-			canvasView.windows = layouts[idx].windows
 			canvasView.selectedWindowID = nil
 			refreshInspector()
 			updateSaveButton()
@@ -773,7 +1089,7 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	private func rebuildScreenPopup() {
 		let current = screenPopup.indexOfSelectedItem
-		let screenCount = NSScreen.screens.count
+		let screenCount = currentVariant()?.displaySetup.displayCount ?? Screen.currentDisplaySetup().displayCount
 		screenPopup.removeAllItems()
 		for i in 1...max(screenCount, 1) { screenPopup.addItem(withTitle: "\(i)") }
 		if current >= 0 && current < screenPopup.numberOfItems { screenPopup.selectItem(at: current) }
@@ -848,6 +1164,15 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 
 	private var toastView: NSView?
 
+	private func showAlert(message: String, informativeText: String) {
+		let alert = NSAlert()
+		alert.messageText = message
+		alert.informativeText = informativeText
+		alert.alertStyle = .informational
+		alert.addButton(withTitle: "OK")
+		alert.runModal()
+	}
+
 	private func showSaveConfirmation() {
 		// Show a toast overlay on the window
 		guard let window = view.window else { return }
@@ -909,6 +1234,12 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 			guard let idx = selectedLayoutIndex else { return }
 			layouts[idx].name = field.stringValue
 			refreshSidebar()
+		} else if field === variantNameField {
+			guard let path = selectedPath() else { return }
+			let signature = layouts[path.layout].variants[path.variant].displaySetup.signature
+			renameSetup(signature: signature, name: field.stringValue)
+			refreshSidebar()
+			updateSaveButton()
 		} else if field === spacingField {
 			rebuildSpacingString()
 		} else if field === appField {
@@ -921,21 +1252,23 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	}
 
 	private func updateSelectedWindowField<T>(_ keyPath: WritableKeyPath<EditableWindowRule, T>, value: T) {
-		guard let idx = selectedLayoutIndex, let wid = selectedWindowID,
-			  let widx = layouts[idx].windows.firstIndex(where: { $0.id == wid }) else { return }
-		layouts[idx].windows[widx][keyPath: keyPath] = value
-		canvasView.windows = layouts[idx].windows
+		guard let wid = selectedWindowID else { return }
+		var windows = currentWindows()
+		guard let widx = windows.firstIndex(where: { $0.id == wid }) else { return }
+		windows[widx][keyPath: keyPath] = value
+		setCurrentWindows(windows)
 		updateSaveButton()
 	}
 
 	private func updateWindowGeometryFromFields() {
-		guard let idx = selectedLayoutIndex, let wid = selectedWindowID,
-			  let widx = layouts[idx].windows.firstIndex(where: { $0.id == wid }) else { return }
-		layouts[idx].windows[widx].x = Double(xField.stringValue) ?? layouts[idx].windows[widx].x
-		layouts[idx].windows[widx].y = Double(yField.stringValue) ?? layouts[idx].windows[widx].y
-		layouts[idx].windows[widx].width = Double(wField.stringValue) ?? layouts[idx].windows[widx].width
-		layouts[idx].windows[widx].height = Double(hField.stringValue) ?? layouts[idx].windows[widx].height
-		canvasView.windows = layouts[idx].windows
+		guard let wid = selectedWindowID else { return }
+		var windows = currentWindows()
+		guard let widx = windows.firstIndex(where: { $0.id == wid }) else { return }
+		windows[widx].x = Double(xField.stringValue) ?? windows[widx].x
+		windows[widx].y = Double(yField.stringValue) ?? windows[widx].y
+		windows[widx].width = Double(wField.stringValue) ?? windows[widx].width
+		windows[widx].height = Double(hField.stringValue) ?? windows[widx].height
+		setCurrentWindows(windows)
 	}
 
 	// MARK: - LayoutCanvasDelegate
@@ -946,30 +1279,29 @@ final class ConfiguratorViewController: NSViewController, LayoutCanvasDelegate, 
 	}
 
 	func canvasDidUpdateWindow(_ canvas: LayoutCanvasView, windowID: UUID) {
-		guard let idx = selectedLayoutIndex,
-			  canvas.windows.contains(where: { $0.id == windowID }) else { return }
-		layouts[idx].windows = canvas.windows
+		guard canvas.windows.contains(where: { $0.id == windowID }) else { return }
+		setCurrentWindows(canvas.windows)
 		if windowID == selectedWindowID { refreshInspector() }
 		updateSaveButton()
 	}
 
 	func canvasDidCreateWindow(_ canvas: LayoutCanvasView, rule: EditableWindowRule) {
-		guard let idx = selectedLayoutIndex else { return }
-		layouts[idx].windows.append(rule)
+		var windows = currentWindows()
+		windows.append(rule)
+		setCurrentWindows(windows)
 		selectedWindowID = rule.id
-		canvasView.windows = layouts[idx].windows
 		canvasView.selectedWindowID = rule.id
 		refreshInspector()
 		updateSaveButton()
 	}
 
 	func canvasDidDeleteWindow(_ canvas: LayoutCanvasView, windowID: UUID) {
-		guard let idx = selectedLayoutIndex,
-			  let rule = layouts[idx].windows.first(where: { $0.id == windowID }) else { return }
+		guard let rule = currentWindows().first(where: { $0.id == windowID }) else { return }
 		confirmDeleteWindow(name: rule.app.isEmpty ? "this window" : "\"\(rule.app)\"") { [self] in
-			layouts[idx].windows.removeAll { $0.id == windowID }
+			var windows = currentWindows()
+			windows.removeAll { $0.id == windowID }
+			setCurrentWindows(windows)
 			if selectedWindowID == windowID { selectedWindowID = nil }
-			canvasView.windows = layouts[idx].windows
 			canvasView.selectedWindowID = selectedWindowID
 			refreshInspector()
 			updateSaveButton()
