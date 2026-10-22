@@ -13,9 +13,9 @@ jobs:
       fail-fast: false
       matrix:
         arch: [arm64, x86_64]
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Import certificate
         env:

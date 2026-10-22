@@ -175,14 +175,12 @@ final class LayoutCanvasView: NSView {
 	/// Convert pixel point to (percent x, percent y, screen index 1-based)
 	private func pixelToPercent(_ point: NSPoint) -> (x: Double, y: Double, screen: Int) {
 		// Find which screen the point is in
-		for (i, sr) in allScreenRects().enumerated() {
-			if sr.contains(point) {
-				return (
-					x: Double((point.x - sr.minX) / sr.width * 100),
-					y: Double((point.y - sr.minY) / sr.height * 100),
-					screen: i + 1
-				)
-			}
+		for (i, sr) in allScreenRects().enumerated() where sr.contains(point) {
+			return (
+				x: Double((point.x - sr.minX) / sr.width * 100),
+				y: Double((point.y - sr.minY) / sr.height * 100),
+				screen: i + 1
+			)
 		}
 		// Default to screen 1
 		let sr = screenRect(for: 1)
@@ -368,8 +366,8 @@ final class LayoutCanvasView: NSView {
 	}
 
 	private func hitWindow(at point: NSPoint) -> UUID? {
-		for rule in windows.reversed() {
-			if ruleToRect(rule).contains(point) { return rule.id }
+		for rule in windows.reversed() where ruleToRect(rule).contains(point) {
+			return rule.id
 		}
 		return nil
 	}
@@ -498,7 +496,7 @@ final class LayoutCanvasView: NSView {
 
 	override func keyDown(with event: NSEvent) {
 		// Delete/Backspace to remove selected window
-		if (event.keyCode == 51 || event.keyCode == 117), let sid = selectedWindowID {
+		if event.keyCode == 51 || event.keyCode == 117, let sid = selectedWindowID {
 			delegate?.canvasDidDeleteWindow(self, windowID: sid)
 		} else {
 			super.keyDown(with: event)

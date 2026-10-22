@@ -133,7 +133,7 @@ final class StatusBar: NSObject {
 
 	private func makeMenuBarIcon() -> NSImage {
 		let size = NSSize(width: 17, height: 17)
-		let image = NSImage(size: size, flipped: false) { rect in
+		let image = NSImage(size: size, flipped: false) { _ in
 			let r: CGFloat = 1.3
 			let lw: CGFloat = 1.0
 			let p: CGFloat = 2 // padding
