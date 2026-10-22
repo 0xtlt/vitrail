@@ -138,8 +138,8 @@ struct WindowManager {
 		}
 
 		// Unhide all apps first
-		for (_, app, _) in matched {
-			if app.isHidden { app.unhide() }
+		for (_, app, _) in matched where app.isHidden {
+			app.unhide()
 		}
 		usleep(100_000) // 100ms for unhide to take effect
 
